@@ -1,5 +1,4 @@
-\# European high altitude soil microbiome Study – Scripts for First Paper
-
+\# European high altitude soil microbiome Study
 
 
 \## Overview
@@ -47,4 +46,3 @@ project/
 \## Dependencies
 
 \- R >= 4.3
-
