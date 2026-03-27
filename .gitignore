@@ -1,0 +1,20 @@
+# R / RStudio
+.Rhistory
+.RData
+.Rproj.user
+
+# Raw data (DO NOT TRACK)
+data/*
+
+# Large bioinformatics files
+*.fastq
+*.fq
+*.bam
+*.sam
+
+# Output files (optional)
+*.png
+*.pdf
+
+# Temporary
+*.tmp
