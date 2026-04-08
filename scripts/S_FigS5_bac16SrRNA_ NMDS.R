@@ -1,5 +1,5 @@
 ###
-### AlpineSoils - summer 23 - bacterial 16S rRNA amplicon NMDS
+### AlpineSoils - summer 23 - bacterial 16S rRNA gene amplicon NMDS
 ###
 
 rm(list=ls(all=TRUE)) # removes everything
@@ -17,11 +17,11 @@ library(grid)  # for arrow()
 
 
 # Load data
-otu_tab <- read.table('data/S_FigS4_AlpSoils23_16S_otu_table.tsv', sep='\t', header = TRUE)
+otu_tab <- read.table('data/S_FigS5_AlpSoils23_16S_otu_table.tsv', sep='\t', header = TRUE)
 rownames(otu_tab) <- otu_tab$OTU
 otu_tab$OTU <- NULL
 
-tax_tab_raw <- read.table('data/S_FigS4_AlpSoils23_16S_taxonomy.tsv', sep=',', header = TRUE)
+tax_tab_raw <- read.table('data/S_FigS5_AlpSoils23_16S_taxonomy.tsv', sep=',', header = TRUE)
 meta_tab <- read.table('data/Fig2_AB_AlpineSoil23_metadata.tsv', sep='\t', header = TRUE)
 meta_tab$ID <- gsub('-', '_', meta_tab$ID)
 rownames(meta_tab) <- meta_tab$ID
@@ -197,7 +197,7 @@ sig_env$NMDS2 <- -sig_env$NMDS2
 nmds_plot_df$site <- factor(nmds_plot_df$site, levels = c("PM","MF","DS","CD","GR","MY1","SN","MY2","SF","BN"))
 
 # --- Plot NMDS ---
-S_FigS4 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+S_FigS5 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
   geom_point(size = 3, alpha = 0.75) +
   geom_segment(data = sig_env, aes(x = x, y = y, xend = NMDS1, yend = NMDS2),
                arrow = arrow(length = unit(0.25, "cm")), color = "black", inherit.aes = FALSE) +
@@ -212,10 +212,10 @@ S_FigS4 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = 
   theme(plot.title = element_text(face="bold", hjust=0.5, size=14),
         plot.margin = margin(20,10,10,10)) +
   labs(title = "Bacterial taxonomic composition")
-S_FigS4
+S_FigS5
 
 
-ggsave("figures/S_FigS4_final_AlpSoils23_bac16srRNA_NMDS.png", plot = S_FigS4, height = 5, width = 6.5)
+ggsave("figures/S_FigS5_final_AlpSoils23_bac16srRNA_NMDS.png", plot = S_FigS5, height = 5, width = 6.5)
 
 
 

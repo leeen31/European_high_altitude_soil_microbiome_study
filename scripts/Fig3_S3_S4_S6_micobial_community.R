@@ -701,18 +701,18 @@ ggsave("figures/data/Fig3_final_AlpSoils23_microb.svg", plot = Fig3_final, heigh
 
 
 
-### Supplemental figure S3 - MAG based taxonomic and functional NMDS  ##########################################################
+### Supplemental figure S4 - MAG based taxonomic and functional NMDS  ##########################################################
 
 
-### S_Fig S3 A) NMDS of MAG-based community composition ----------------
+### S_Fig S4 A) NMDS of MAG-based community composition ----------------
 
 # use meta data from above
 
 # read the mags abundance file
-mag_abund_abs <- read.csv('data/FigS3_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
+mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
 
 # read tax tables
-mag_tax <- read.csv('data/FigS3_A_AlpineSoil23_MAGs_taxonomy_table.tsv', sep='\t', header = T)
+mag_tax <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_taxonomy_table.tsv', sep='\t', header = T)
 
 
 
@@ -834,7 +834,7 @@ sig_env$NMDS1 <- -sig_env$NMDS1
 sig_env$NMDS2 <- -sig_env$NMDS2
 
 
-FigS3A <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+FigS4A <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
   geom_point(size = 3, alpha = 0.75) +
   geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
                arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
@@ -859,7 +859,7 @@ FigS3A <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = d
   ) +
   labs(title = "Taxonomic level") +
   theme_bw()
-FigS3A
+FigS4A
 
 
 
@@ -883,16 +883,16 @@ adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 **
 
 
 
-### S_Fig S3 B) NMDS of MAG-based functional composition ----------------
+### S_Fig S4 B) NMDS of MAG-based functional composition ----------------
 
 
 # use mag abundance and meta data from above 
 
 # read the mags abundance file (use newly imported file!)
-mag_abund_abs <- read.csv('data/FigS3_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
+mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
 
 # read functional annotations file
-ann_tab <- read.csv('data/FigS3_B_AlpineSoil23_MAGs_functional_annotations_emapper.tsv', sep='\t', header = T)
+ann_tab <- read.csv('data/FigS4_B_AlpineSoil23_MAGs_functional_annotations_emapper.tsv', sep='\t', header = T)
 
 
 
@@ -1030,7 +1030,7 @@ stress_val <- round(nmds$stress, 2)
 nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
 
 
-FigS3B <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+FigS4B <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
   geom_point(size = 3, alpha = 0.75) +
   geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
                arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
@@ -1054,7 +1054,7 @@ FigS3B <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = d
   ) +
   labs(title = "Functional level") +
   theme_bw()
-FigS3B
+FigS4B
 
 
 
@@ -1076,25 +1076,25 @@ adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 **
 
 
 
-### exporting final S figure S3 ---------------
+### exporting final S figure S4 ---------------
 library(ggpubr)
 
-S_FigS3_final <- ggarrange(
-  FigS3A, FigS3B,
+S_FigS4_final <- ggarrange(
+  FigS4A, FigS4B,
   ncol = 2, nrow = 1,
   labels = c('A', 'B'),
   common.legend = TRUE,
   legend = "right"
 )
 
-S_FigS3_final
+S_FigS4_final
 
-ggsave("figures/S_FigS3_final_AlpSoils23_NMDSs_MAG.png", plot = S_FigS3_final, height = 4, width = 9)
-
-
+ggsave("figures/S_FigS4_final_AlpSoils23_NMDSs_MAG.png", plot = S_FigS4_final, height = 4, width = 9)
 
 
-### Supplemental figure S5 - Functional alpha diversity (KEGG ko based) (MAG based)  ##########################################################
+
+
+### Supplemental figure S6 - Functional alpha diversity (KEGG ko based) (MAG based)  ##########################################################
 
 # use meta data from above and ko_mat
 
@@ -1130,16 +1130,16 @@ p_3
 
 # use vegetation gradient bar from above
 
-S_FigS5 <- plot_grid(
+S_FigS6 <- plot_grid(
   p_3,
   p_triangle,
   ncol = 1,
   align = "v",
   rel_heights = c(1, 0.08)  # triangle height
 )
-S_FigS5
+S_FigS6
 
-ggsave("figures/S_FigS5_final_AlpSoils23_functional_diverstiy.png", plot = S_FigS6, height = 3, width = 4.5)
+ggsave("figures/S_FigS6_final_AlpSoils23_functional_diverstiy.png", plot = S_FigS6, height = 3, width = 4.5)
 
 
 
@@ -1180,17 +1180,17 @@ kruskal.test(Shannon ~ depth, data = alpha_div_funct) # p-value = 0.3944
 
 
 
-### Supplemental figure S6 - abundance barplot (contig based)  ##########################################################
+### Supplemental figure S3 - abundance barplot (contig based)  ##########################################################
 
 # use meta data from above
 
 # read coverage table (use newly imported table!)
 abund_tab_abs <- read.csv('data/Fig3_A_AlpineSoils23_contigs_coverage_abs.tsv', sep='\t', header = T)
-abund_tab_rel <- read.csv('data/FigS5_B_AlpineSoils23_contigs_coverage_rel.tsv', sep='\t', header = T)
+abund_tab_rel <- read.csv('data/FigS3_B_AlpineSoils23_contigs_coverage_rel.tsv', sep='\t', header = T)
 
 
 # read tax table
-tax_tab <- read.csv('data/FigS5_A_AlpineSoil23_contigs_taxonomy_table.tsv', sep='\t', header = T)
+tax_tab <- read.csv('data/FigS3_A_AlpineSoil23_contigs_taxonomy_table.tsv', sep='\t', header = T)
 
 # Clean taxonomy table: replace NAs with "unclassified"
 tax_tab_clean <- tax_tab %>%
@@ -1211,7 +1211,6 @@ abund_tab_abs$contig_id = NULL
 abund_tab_abs_melt = reshape2::melt(as.matrix(abund_tab_abs))
 colnames(abund_tab_abs_melt) = c('Contig', 'Sample', 'Abs_abundance')
 
-#abund_tab_abs_melt$Phylum = map_chr(abund_tab_abs_melt$Contig, function(x) tax_tab_clean$phylum[rownames(tax_tab_clean) == x])
 tax_tab_clean_df <- tax_tab_clean %>% tibble::rownames_to_column("Contig")
 
 abund_tab_abs_melt <- abund_tab_abs_melt %>% left_join(tax_tab_clean_df %>% select(Contig, phylum), by = "Contig")
@@ -1256,7 +1255,7 @@ abund_tab_abs_sum$site <- factor(abund_tab_abs_sum$site,
                                  levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
 
 # plot phylum per sample
-FigS6A <- ggplot(abund_tab_abs_sum, aes(x = Sample, y = Abs_abundance, fill = Phylum)) +
+FigS3A <- ggplot(abund_tab_abs_sum, aes(x = Sample, y = Abs_abundance, fill = Phylum)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   facet_grid(. ~ site, scales = "free_x", space = "free_x") +
@@ -1266,7 +1265,7 @@ FigS6A <- ggplot(abund_tab_abs_sum, aes(x = Sample, y = Abs_abundance, fill = Ph
     axis.text.x = element_blank(),
     axis.ticks.x = element_line()
   ) 
-FigS6A
+FigS3A
 
 
 
@@ -1325,7 +1324,7 @@ abund_tab_rel_sum$site <- factor(abund_tab_rel_sum$site,
                                  levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
 
 # plot genus per sample
-FigS6B <- ggplot(abund_tab_rel_sum, aes(x = Sample, y = rel_abundance, fill = Genus)) +
+FigS3B <- ggplot(abund_tab_rel_sum, aes(x = Sample, y = rel_abundance, fill = Genus)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   facet_grid(. ~ site, scales = "free_x", space = "free_x") +
@@ -1335,23 +1334,23 @@ FigS6B <- ggplot(abund_tab_rel_sum, aes(x = Sample, y = rel_abundance, fill = Ge
     axis.text.x = element_blank(),
     axis.ticks.x = element_line()
   ) 
-FigS6B
+FigS3B
 
 
-### exporting final S figure S6 ---------------
+### exporting final S figure S3 ---------------
 library(ggpubr)
 
-S_FigS6_final <- ggarrange(
-  FigS6A, FigS6B,
+S_FigS3_final <- ggarrange(
+  FigS3A, FigS3B,
   ncol = 1, nrow = 2,
   labels = c('A', 'B'),
   common.legend = TRUE,
   legend = "right"
 )
 
-S_FigS6_final
+S_FigS3_final
 
-ggsave("figures/S_FigS6_final_AlpSoils23_taxonomy_abs_rel.png", plot = S_FigS6_final, height = 7.5, width = 10)
+ggsave("figures/S_FigS3_final_AlpSoils23_taxonomy_abs_rel.png", plot = S_FigS3_final, height = 7.5, width = 10)
 
 
 
