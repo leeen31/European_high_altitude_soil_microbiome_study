@@ -19,9 +19,7 @@ The scripts perform:
 
 \## Data
 
-\- Raw sequences: deposited at ENA under accession \*\*PRJEB109934\*\*
-
-\- Processed data tables and metadata: available on Zenodo: \*\*DOI:10.5281/zenodo.xxxxx\*\*
+\- The raw sequencing reads for metagenomes generated in this study are publicly available in ENA under the project accession PRJEB109934 (https://www.ebi.ac.uk/ena/browser/view/PRJEB109934) and for 16S rRNA gene amplicons under the project accession PRJEB111633 (https://www.ebi.ac.uk/ena/browser/view/PRJEB111633). Processed datasets and associated metadata are provided in Zenodo (https://doi.org/10.5281/zenodo.19549183).
 
 
 
