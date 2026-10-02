@@ -51,9 +51,9 @@ abund_hell <- sqrt(abund_mat / rowSums(abund_mat))
 
 
 # Distance matrix and NMDS
-dist_mat <- vegdist(abund_hell, method = "bray")  # Bray-Curtis
+dist_mat_tax <- vegdist(abund_hell, method = "bray")  # Bray-Curtis
 
-nmds <- metaMDS(dist_mat)
+nmds <- metaMDS(dist_mat_tax)
 stressplot(nmds)
 
 # NMDS site scores
@@ -223,6 +223,98 @@ adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999, by = "marg
 
 
 
+### variance partitioning ---------------------------------
+library(dplyr)
+library(tibble)
+library(vegan)
+
+
+# with pH, CN, vegetation, altitude and lithology
+env_vars_selected <- env_vars %>%
+  select(
+    ID,
+    vegetation,
+    pH,
+    C_N,
+    altitude,
+    lithology
+  )
+
+abund_env <- as.data.frame(abund_tab_abs_t) %>%
+  rownames_to_column("ID") %>%
+  left_join(
+    env_vars_selected,
+    by = "ID"
+  ) %>%
+  filter(
+    complete.cases(
+      vegetation,
+      pH,
+      C_N,
+      altitude,
+      lithology
+    )
+  )
+
+community <- abund_env %>%
+  select(-ID, -vegetation, -pH, -C_N, -altitude, -lithology)
+
+env_vp <- abund_env %>%
+  select(ID, vegetation, pH, C_N, altitude, lithology)
+env_vp$lithology <- as.factor(env_vp$lithology)
+
+
+vp <- varpart(
+  community,
+  ~ vegetation,
+  ~ pH + C_N,
+  ~ altitude + lithology,
+  data = env_vp
+)
+
+vp
+
+
+# only vegetation
+mod_veg <- rda(
+  community ~ vegetation +
+    Condition(pH + C_N + altitude + lithology),
+  data = env_vp
+)
+
+anova(mod_veg)
+RsquareAdj(mod_veg)
+
+
+# only pH and C:N
+mod_pH_CN <- rda(
+  community ~ pH + C_N +
+    Condition(vegetation + altitude + lithology),
+  data = env_vp
+)
+
+anova(mod_pH_CN)
+RsquareAdj(mod_pH_CN)
+
+
+# only altitude and lithology
+mod_alt_lith <- rda(
+  community ~ altitude + lithology +
+    Condition(vegetation + pH + C_N),
+  data = env_vp
+)
+
+anova(mod_alt_lith)
+RsquareAdj(mod_alt_lith)
+
+
+
+
+
+
+
+
+
 
 ### Fig 3 B) NMDS of contig-based functional composition (KO) ------------
 
@@ -287,12 +379,12 @@ ko_mat <- ko_wide %>%
 
 
 # hellinger transform
-abund_hell <- sqrt(ko_mat / rowSums(ko_mat))
+abund_hell_ko <- sqrt(ko_mat / rowSums(ko_mat))
 
 
 # distance matrix and nmds
-dist_mat <- vegdist(abund_hell, method = "bray")
-nmds <- metaMDS(dist_mat)
+dist_mat_ko <- vegdist(abund_hell_ko, method = "bray")
+nmds <- metaMDS(dist_mat_ko)
 stressplot(nmds)
 
 nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
@@ -437,6 +529,13 @@ adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # Site/Dep
 
 
 
+
+### Mantel test - functional redundancy challenge 
+
+# using dissimilarity table of taxonomic and functional beta diverstiy
+# mantel test
+library(ade4)
+mantel.rtest(dist_mat_tax, dist_mat_ko, nrepet = 9999)
 
 
 
@@ -694,487 +793,7 @@ Fig3_final <- ggarrange(
 Fig3_final
 
 ggsave("figures/Fig3_final_AlpSoils23_microb.png", plot = Fig3_final, height = 7, width = 10)
-ggsave("figures/data/Fig3_final_AlpSoils23_microb.svg", plot = Fig3_final, height = 8, width = 10)
-
-
-
-
-
-
-### Supplemental figure S4 - MAG based taxonomic and functional NMDS  ##########################################################
-
-
-### S_Fig S4 A) NMDS of MAG-based community composition ----------------
-
-# use meta data from above
-
-# read the mags abundance file
-mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
-
-# read tax tables
-mag_tax <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_taxonomy_table.tsv', sep='\t', header = T)
-
-
-
-
-
-
-# Transpose: samples become rows, ASVs become columns
-rownames(mag_abund_abs) = mag_abund_abs$bin_id
-mag_abund_abs$bin_id = NULL
-
-mag_abund_abs_t <- t(mag_abund_abs)
-mag_abund_mat <- as.matrix(mag_abund_abs_t)  # already numeric, samples x ASVs
-
-
-
-# Hellinger transformation
-abund_hell <- sqrt(mag_abund_mat / rowSums(mag_abund_mat))
-
-
-
-
-# Distance matrix and NMDS
-dist_mat <- vegdist(abund_hell, method = "bray")  # Bray-Curtis
-
-nmds <- metaMDS(dist_mat)
-stressplot(nmds)
-
-# NMDS site scores
-nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
-nmds_scores$ID <- rownames(nmds_scores)
-
-
-# Load metadata/environmental variables
-env_vars <- meta_tab
-env_vars$Shannon <- NULL
-env_vars$proc_euc <- NULL
-
-# Fix sample names
-rownames(env_vars) <- env_vars$ID
-
-
-# Keep only samples present in NMDS
-env_vars <- env_vars[rownames(env_vars) %in% rownames(nmds_scores), ]
-
-# Standardize numeric variables
-env_num <- env_vars %>%
-  select(where(is.numeric)) %>%
-  scale() %>%
-  as.data.frame()
-rownames(env_num) <- rownames(env_vars)
-
-
-# Environmental fitting (envfit)
-envfit_res <- envfit(nmds, env_num, permutations = 999, na.rm = TRUE)
-
-
-
-# envfit_res is your envfit result
-env_vectors <- scores(envfit_res, display = "vectors")  # coordinates of arrows
-env_pvals   <- envfit_res$vectors$pvals                # raw p-values
-env_r2      <- envfit_res$vectors$r                    # R² values
-
-# Combine into a data frame
-env_summary <- data.frame(
-  Variable = rownames(env_vectors),
-  NMDS1 = env_vectors[, "NMDS1"],
-  NMDS2 = env_vectors[, "NMDS2"],
-  R2 = env_r2,
-  P = env_pvals
-)
-
-# Add BH-adjusted p-values
-env_summary$P_adj <- p.adjust(env_summary$P, method = "BH")
-
-# Print all variables with adjusted p-values
-print(env_summary[order(env_summary$P_adj), ])
-
-
-
-
-
-#  Extract significant vectors 
-sig_vectors <- envfit_res$vectors$arrows * sqrt(envfit_res$vectors$r)
-sig_pvals   <- envfit_res$vectors$pvals
-sig_adj     <- p.adjust(sig_pvals, method = "BH") # adjusted p value after Benjamini Hochberg
-
-sig_names <- names(sig_adj)[sig_adj < 0.05]
-
-sig_env <- as.data.frame(sig_vectors[sig_names, , drop = FALSE])
-sig_env$Variable <- rownames(sig_env)
-
-
-
-
-# Scale arrows to NMDS range 
-arrow_scale <- 0.5 * min(apply(nmds_scores[,c("NMDS1","NMDS2")],2,diff)) /
-  max(sqrt(rowSums(sig_env[,1:2]^2)))
-sig_env$NMDS1 <- sig_env$NMDS1 * arrow_scale
-sig_env$NMDS2 <- sig_env$NMDS2 * arrow_scale
-sig_env$x <- 0
-sig_env$y <- 0
-
-
-
-# Combine NMDS and metadata for plotting
-nmds_plot_df <- nmds_scores %>%
-  left_join(env_vars, by = c("ID" = "ID"))
-
-# Plot NMDS with arrows
-custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
-stress_val <- round(nmds$stress, 2)
-
-# order sites by vegetation
-nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
-
-
-# Flip only arrows (both axes)
-sig_env$NMDS1 <- -sig_env$NMDS1
-sig_env$NMDS2 <- -sig_env$NMDS2
-
-
-FigS4A <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
-  geom_point(size = 3, alpha = 0.75) +
-  geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
-               arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
-  geom_text_repel(data=sig_env, aes(x=NMDS1*1.1, y=NMDS2*1.1, label=Variable),
-                  size=4, color="black", inherit.aes = FALSE) +
-  labs(x="NMDS1", y="NMDS2", color="Site", shape="Depth") +
-  scale_color_manual(values = custom_colors) +
-  annotate("text", x = -Inf, y = -Inf, 
-           label = paste("Stress =", stress_val), 
-           hjust = -0.1, vjust = -0.5, size = 4) +
-  labs(x = "NMDS1", y = "NMDS2", color = "Site", shape = "Depth") +
-  scale_shape_manual(
-    values = c(17, 16),  # your shapes
-    labels = c("Topsoil","Lower soil layer")) +
-  theme(
-    plot.title = element_text(
-      face = "bold",
-      hjust = 0.5,
-      size = 14,
-    ),
-    plot.margin = margin(20, 10, 10, 10)
-  ) +
-  labs(title = "Taxonomic level") +
-  theme_bw()
-FigS4A
-
-
-
-# PERMANOVA 
-# Make sure samples match
-meta_tab <- meta_tab %>% filter(ID %in% rownames(abund_hell))
-
-# Reorder abund_hell to match metadata
-abund_hell_sub <- abund_hell[meta_tab$ID, , drop = FALSE]
-
-# Compute Bray-Curtis distance
-dist_mat <- vegdist(abund_hell_sub, method = "bray")
-
-# PERMANOVA: site and depth effect
-adonis2(dist_mat ~ site, data = meta_tab, permutations = 999) # 0.001 ***
-adonis2(dist_mat ~ depth, data = meta_tab, permutations = 999) # 0.749
-
-# PERMANOVA: depth nested within site
-adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 ***
-
-
-
-
-### S_Fig S4 B) NMDS of MAG-based functional composition ----------------
-
-
-# use mag abundance and meta data from above 
-
-# read the mags abundance file (use newly imported file!)
-mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
-
-# read functional annotations file
-ann_tab <- read.csv('data/FigS4_B_AlpineSoil23_MAGs_functional_annotations_emapper.tsv', sep='\t', header = T)
-
-
-
-### NMDS of KO terms 
-
-library(vegan)
-library(ggplot2)
-library(ggrepel)
-library(dplyr)
-library(tidyr)
-library(tidyverse)
-
-
-### Extract KEGG KOs from annotations
-ann_tab <- ann_tab %>%
-  mutate(KEGG_ko = str_extract(KEGG_ko, "K\\d{5}")) %>%
-  filter(!is.na(KEGG_ko))
-
-
-# Join abundance + metadata 
-mags_long <- mag_abund_abs %>% # use absolute abundance!
-  pivot_longer(-bin_id, names_to = "ID", values_to = "abundance")
-
-# join annotations
-mag_ann <- mags_long %>% 
-  left_join(ann_tab, by = c("bin_id" ), relationship = "many-to-many")
-
-
-# summarize KO abundances per sample
-ko_wide <- mag_ann %>%
-  group_by(ID, KEGG_ko) %>%
-  summarise(abundance = sum(abundance, na.rm = TRUE), .groups = "drop")  %>%
-  tidyr::pivot_wider(
-    names_from = KEGG_ko,
-    values_from = abundance,
-    values_fill = 0
-  )
-
-
-# Convert to matrix with sample IDs as rownames
-ko_mat <- ko_wide %>%
-  column_to_rownames("ID") %>%  # rownames = sample IDs
-  as.matrix()                   # numeric matrix
-
-
-# hellinger transform
-abund_hell <- sqrt(ko_mat / rowSums(ko_mat))
-
-
-# distance matrix and nmds
-dist_mat <- vegdist(abund_hell, method = "bray")
-nmds <- metaMDS(dist_mat)
-stressplot(nmds)
-
-nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
-nmds_scores$ID <- rownames(nmds_scores)
-
-
-# metadata alignment
-env_vars <- meta_tab
-env_vars$Shannon <- NULL
-env_vars$proc_euc <- NULL
-rownames(env_vars) <- env_vars$ID
-
-env_vars <- env_vars[rownames(env_vars) %in% rownames(nmds_scores), ]
-
-env_num <- env_vars %>%
-  select(where(is.numeric)) %>%
-  scale() %>%
-  as.data.frame()
-rownames(env_num) <- rownames(env_vars)
-
-
-# environmental variables
-envfit_res <- envfit(nmds, env_num, permutations = 999, na.rm = TRUE)
-
-env_vectors <- scores(envfit_res, display = "vectors")
-env_pvals   <- envfit_res$vectors$pvals
-env_r2      <- envfit_res$vectors$r
-
-env_summary <- data.frame(
-  Variable = rownames(env_vectors),
-  NMDS1 = env_vectors[, "NMDS1"],
-  NMDS2 = env_vectors[, "NMDS2"],
-  R2 = env_r2,
-  P = env_pvals
-)
-
-env_summary$P_adj <- p.adjust(env_summary$P, method = "BH")
-print(env_summary[order(env_summary$P_adj), ])
-
-
-# sifnificant drivers
-sig_vectors <- envfit_res$vectors$arrows * sqrt(envfit_res$vectors$r)
-sig_pvals   <- envfit_res$vectors$pvals
-sig_adj     <- p.adjust(sig_pvals, method = "BH")
-
-sig_names <- names(sig_adj)[sig_adj < 0.05]
-
-sig_env <- as.data.frame(sig_vectors[sig_names, , drop = FALSE])
-sig_env$Variable <- rownames(sig_env)
-
-arrow_scale <- 0.5 * min(apply(nmds_scores[,c("NMDS1","NMDS2")],2,diff)) /
-  max(sqrt(rowSums(sig_env[,1:2]^2)))
-
-sig_env$NMDS1 <- sig_env$NMDS1 * arrow_scale
-sig_env$NMDS2 <- sig_env$NMDS2 * arrow_scale
-sig_env$x <- 0
-sig_env$y <- 0
-
-
-
-
-# plot nmds
-nmds_plot_df <- nmds_scores %>% 
-  left_join(env_vars, by = "ID")
-
-
-
-# invert x axis
-nmds_plot_df$NMDS1 <- -nmds_plot_df$NMDS1
-nmds_plot_df$NMDS2 <- -nmds_plot_df$NMDS2
-
-# Flip arrows
-sig_env$NMDS1 <- -sig_env$NMDS1
-sig_env$NMDS2 <- -sig_env$NMDS2
-
-
-
-# set colors
-custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
-stress_val <- round(nmds$stress, 2)
-
-# order sites by vegetation
-nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
-
-
-FigS4B <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
-  geom_point(size = 3, alpha = 0.75) +
-  geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
-               arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
-  geom_text_repel(data=sig_env, aes(x=NMDS1*1.1, y=NMDS2*1.1, label=Variable),
-                  size=4, color="black", inherit.aes = FALSE) +
-  labs(x="NMDS1", y="NMDS2", color="Site", shape="Depth") +
-  scale_color_manual(values = custom_colors) +
-  annotate("text", x = -Inf, y = -Inf, 
-           label = paste("Stress =", stress_val), 
-           hjust = -0.1, vjust = -0.5, size = 4) +
-  scale_shape_manual(
-    values = c(17, 16),  # your shapes
-    labels = c("Topsoil","Lower soil layer")) +
-  theme(
-    plot.title = element_text(
-      face = "bold",
-      hjust = 0.5,
-      size = 14,
-    ),
-    plot.margin = margin(20, 10, 10, 10)
-  ) +
-  labs(title = "Functional level") +
-  theme_bw()
-FigS4B
-
-
-
-
-### PERMANOVA
-meta_tab <- meta_tab %>% filter(ID %in% rownames(abund_hell))
-
-abund_hell_sub <- abund_hell[meta_tab$ID, , drop = FALSE]
-dist_mat <- vegdist(abund_hell_sub, method = "bray")
-
-adonis2(dist_mat ~ site, data = meta_tab, permutations = 999) # 0.001 ***
-adonis2(dist_mat ~ depth, data = meta_tab, permutations = 999) # 0.629
-
-adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 ***
-
-
-
-
-
-
-
-### exporting final S figure S4 ---------------
-library(ggpubr)
-
-S_FigS4_final <- ggarrange(
-  FigS4A, FigS4B,
-  ncol = 2, nrow = 1,
-  labels = c('A', 'B'),
-  common.legend = TRUE,
-  legend = "right"
-)
-
-S_FigS4_final
-
-ggsave("figures/S_FigS4_final_AlpSoils23_NMDSs_MAG.png", plot = S_FigS4_final, height = 4, width = 9)
-
-
-
-
-### Supplemental figure S6 - Functional alpha diversity (KEGG ko based) (MAG based)  ##########################################################
-
-# use meta data from above and ko_mat
-
-
-# Compute functional diversity
-alpha_div_funct <- data.frame(
-  Sample = rownames(ko_mat),
-  Shannon = vegan::diversity(ko_mat, index = "shannon"),
-  Simpson = vegan::diversity(ko_mat, index = "simpson"),
-  Richness = vegan::specnumber(ko_mat)
-)
-
-# add site per sample
-meta_tab$Sample <- meta_tab$ID
-alpha_div_funct <- alpha_div_funct %>% left_join(meta_tab %>% select(Sample, site, depth), by = "Sample")
-
-# Ensure consistent site order
-alpha_div_funct$site <- factor(alpha_div_funct$site,
-                         levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
-custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
-
-
-# plot
-p_3 <- ggplot(alpha_div_funct, aes(x = site, y = Shannon, color = site)) +
-  geom_jitter(width = 0.2, size = 1, alpha = 0.7, color = "grey50") + 
-  geom_boxplot(fill = NA) +   # outline only, no fill
-  labs(x = "Site", y = "Functional diverstiy\n(Shannon Index)") +
-  scale_colour_manual(values = custom_colors) +
-  theme_bw() +
-  theme(legend.position = "none")
-p_3 
-
-
-# use vegetation gradient bar from above
-
-S_FigS6 <- plot_grid(
-  p_3,
-  p_triangle,
-  ncol = 1,
-  align = "v",
-  rel_heights = c(1, 0.08)  # triangle height
-)
-S_FigS6
-
-ggsave("figures/S_FigS6_final_AlpSoils23_functional_diverstiy.png", plot = S_FigS6, height = 3, width = 4.5)
-
-
-
-
-
-# stats:
-alpha_div_funct$site <- factor(alpha_div_funct$site)
-alpha_div_funct$depth <- factor(alpha_div_funct$depth)
-
-# normality? 
-shapiro.test(alpha_div_funct$Shannon) # significant, so not normal
-
-# Test differences across sites
-kruskal.test(Shannon ~ site, data = alpha_div_funct) # p-value = 6.146e-010
-
-# Post-hoc pairwise Wilcoxon test
-pairwise.wilcox.test(alpha_div_funct$Shannon, alpha_div_funct$site, p.adjust.method = "BH")
-
-# Test differences across depths
-kruskal.test(Shannon ~ depth, data = alpha_div_funct) # p-value = 0.3944
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ggsave("figures/Fig3_final_AlpSoils23_microb.svg", plot = Fig3_final, height = 8, width = 10)
 
 
 
@@ -1353,6 +972,676 @@ S_FigS3_final
 ggsave("figures/S_FigS3_final_AlpSoils23_taxonomy_abs_rel.png", plot = S_FigS3_final, height = 7.5, width = 10)
 
 
+
+
+
+
+
+
+
+### S_Fig S4 NMDS on relative abundance to comapre to normalized data -------------------
+
+# load libs
+library(ggordiplots)
+library(tibble)
+library(reshape2)
+library(dplyr)
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+library(RColorBrewer)
+library(ggpubr)
+
+
+# use abund_tab_rel from above
+### NMDS 
+
+# Transpose: samples become rows, ASVs become columns
+rownames(abund_tab_rel) = abund_tab_rel$contig_id
+abund_tab_rel$contig_id = NULL
+
+
+abund_tab_rel_t <- t(abund_tab_rel)
+abund_mat <- as.matrix(abund_tab_rel_t)  # already numeric, samples x ASVs
+
+
+# Hellinger transformation
+abund_hell <- sqrt(abund_mat / rowSums(abund_mat))
+
+
+
+
+# Distance matrix and NMDS
+dist_mat_tax <- vegdist(abund_hell, method = "bray")  # Bray-Curtis
+
+nmds <- metaMDS(dist_mat_tax)
+stressplot(nmds)
+
+# NMDS site scores
+nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
+nmds_scores$ID <- rownames(nmds_scores)
+
+
+# Load metadata/environmental variables
+env_vars <- meta_tab
+env_vars$Shannon <- NULL
+env_vars$proc_euc <- NULL
+
+# Fix sample names
+rownames(env_vars) <- env_vars$ID
+
+
+# Keep only samples present in NMDS
+env_vars <- env_vars[rownames(env_vars) %in% rownames(nmds_scores), ]
+
+# Standardize numeric variables
+env_num <- env_vars %>%
+  select(where(is.numeric)) %>%
+  scale() %>%
+  as.data.frame()
+rownames(env_num) <- rownames(env_vars)
+
+
+# Environmental fitting (envfit)
+envfit_res <- envfit(nmds, env_num, permutations = 999, na.rm = TRUE)
+
+
+
+# envfit_res is your envfit result
+env_vectors <- scores(envfit_res, display = "vectors")  # coordinates of arrows
+env_pvals   <- envfit_res$vectors$pvals                # raw p-values
+env_r2      <- envfit_res$vectors$r                    # R² values
+
+# Combine into a data frame
+env_summary <- data.frame(
+  Variable = rownames(env_vectors),
+  NMDS1 = env_vectors[, "NMDS1"],
+  NMDS2 = env_vectors[, "NMDS2"],
+  R2 = env_r2,
+  P = env_pvals
+)
+
+# Add BH-adjusted p-values
+env_summary$P_adj <- p.adjust(env_summary$P, method = "BH")
+
+# Print all variables with adjusted p-values
+print(env_summary[order(env_summary$P_adj), ])
+
+
+
+
+
+#  Extract significant vectors 
+sig_vectors <- envfit_res$vectors$arrows * sqrt(envfit_res$vectors$r)
+sig_pvals   <- envfit_res$vectors$pvals
+sig_adj     <- p.adjust(sig_pvals, method = "BH")
+
+sig_names <- names(sig_adj)[sig_adj < 0.05]
+
+sig_env <- as.data.frame(sig_vectors[sig_names, , drop = FALSE])
+sig_env$Variable <- rownames(sig_env)
+
+
+
+# Scale arrows to NMDS range 
+arrow_scale <- 0.5 * min(apply(nmds_scores[,c("NMDS1","NMDS2")],2,diff)) /
+  max(sqrt(rowSums(sig_env[,1:2]^2)))
+sig_env$NMDS1 <- sig_env$NMDS1 * arrow_scale
+sig_env$NMDS2 <- sig_env$NMDS2 * arrow_scale
+sig_env$x <- 0
+sig_env$y <- 0
+
+
+
+# Combine NMDS and metadata for plotting
+nmds_plot_df <- nmds_scores %>%
+  left_join(env_vars, by = c("ID" = "ID"))
+
+# Plot NMDS with arrows
+custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
+stress_val <- round(nmds$stress, 2)
+
+
+# order sites by vegetation
+nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
+
+
+# rename labels
+sig_env <- sig_env %>%
+  mutate(Variable = recode(Variable,
+                           "altitude" = "Altitude",
+                           "vegetation" = "Vegetation cover",
+                           "C_N" = "C:N ratio", 
+                           "mean_cells_gFW" = "Cell number", 
+                           "CO2_umol_g_h" = "CO₂ rate (µmol g⁻¹ h⁻¹)", 
+                           "CH4_umol_g_h" = "CH₄ rate (µmol g⁻¹ h⁻¹)"))
+
+
+# move labels to look nice
+sig_env$x[sig_env$label == 'Cell number'] = sig_env$x[sig_env$label == 'Cell number'] - 0.5
+sig_env$y[sig_env$label == 'Altitude'] = sig_env$y[sig_env$label == 'Altitude'] - 0.5
+sig_env$y[sig_env$label == 'CO₂ rate (µmol g⁻¹ h⁻¹)'] = sig_env$y[sig_env$label == 'CO₂ rate (µmol g⁻¹ h⁻¹)'] -2
+sig_env$y[sig_env$label == 'pH'] = sig_env$y[sig_env$label == 'pH'] - 0.8
+sig_env$x[sig_env$label == 'C:N ratio'] = sig_env$x[sig_env$label == 'C:N ratio'] - 0.2
+sig_env$y[sig_env$label == 'Vegetation cover'] = sig_env$y[sig_env$label == 'Vegetation cover'] + 0.4
+
+
+
+# Flip only arrows (both axes)
+sig_env$NMDS1 <- -sig_env$NMDS1
+sig_env$NMDS2 <- -sig_env$NMDS2
+
+FigS4 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+  geom_point(size = 3, alpha = 0.75) +
+  geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
+               arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
+  geom_text_repel(data=sig_env, aes(x=NMDS1*1.1, y=NMDS2*1.1, label=Variable),
+                  size=4, color="black", inherit.aes = FALSE) +
+  labs(x="NMDS1", y="NMDS2", color="Site", shape="Depth") +
+  scale_color_manual(values = custom_colors) +
+  annotate("text", x = Inf, y = -Inf, 
+           label = paste("Stress =", stress_val), 
+           hjust = 1.1, vjust = -0.5, size = 4) +
+  labs(x = "NMDS1", y = "NMDS2", color = "Site", shape = "Depth") +
+  scale_shape_manual(
+    values = c(17, 16),  # your shapes
+    labels = c("Topsoil", "Lower soil layer")) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14,
+    ),
+    plot.margin = margin(20, 10, 10, 10)
+  ) +
+  labs(title = "Taxonomic level") +
+  theme_bw()
+FigS4
+
+ggsave("figures/S_FigS4_final_AlpSoils23_NMDS_taxonomy_contig_relabund.png", plot = FigS4, height = 5, width = 6.5)
+
+
+
+
+
+# PERMANOVA 
+# Make sure samples match
+meta_tab <- meta_tab %>% filter(ID %in% rownames(abund_hell))
+
+# Reorder abund_hell to match metadata
+abund_hell_sub <- abund_hell[meta_tab$ID, , drop = FALSE]
+
+# Compute Bray-Curtis distance
+dist_mat <- vegdist(abund_hell_sub, method = "bray")
+
+# PERMANOVA: site effect
+adonis2(dist_mat ~ site, data = meta_tab, permutations = 999) # site: 0.001 ***
+adonis2(dist_mat ~ depth, data = meta_tab, permutations = 999) # depth: 0.729
+
+# PERMANOVA: depth nested within site
+adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999, by = "margin") # Site/Depth  0.001 ***
+
+
+### Supplemental figure S5 - MAG based taxonomic and functional NMDS  ##########################################################
+
+
+### S_Fig S5 A) NMDS of MAG-based community composition ----------------
+
+# use meta data from above
+
+# read the mags abundance file
+mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
+
+# read tax tables
+mag_tax <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_taxonomy_table.tsv', sep='\t', header = T)
+
+
+
+
+
+
+# Transpose: samples become rows, ASVs become columns
+rownames(mag_abund_abs) = mag_abund_abs$bin_id
+mag_abund_abs$bin_id = NULL
+
+mag_abund_abs_t <- t(mag_abund_abs)
+mag_abund_mat <- as.matrix(mag_abund_abs_t)  # already numeric, samples x ASVs
+
+
+
+# Hellinger transformation
+abund_hell <- sqrt(mag_abund_mat / rowSums(mag_abund_mat))
+
+
+
+
+# Distance matrix and NMDS
+dist_mat <- vegdist(abund_hell, method = "bray")  # Bray-Curtis
+
+nmds <- metaMDS(dist_mat)
+stressplot(nmds)
+
+# NMDS site scores
+nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
+nmds_scores$ID <- rownames(nmds_scores)
+
+
+# Load metadata/environmental variables
+env_vars <- meta_tab
+env_vars$Shannon <- NULL
+env_vars$proc_euc <- NULL
+
+# Fix sample names
+rownames(env_vars) <- env_vars$ID
+
+
+# Keep only samples present in NMDS
+env_vars <- env_vars[rownames(env_vars) %in% rownames(nmds_scores), ]
+
+# Standardize numeric variables
+env_num <- env_vars %>%
+  select(where(is.numeric)) %>%
+  scale() %>%
+  as.data.frame()
+rownames(env_num) <- rownames(env_vars)
+
+
+# Environmental fitting (envfit)
+envfit_res <- envfit(nmds, env_num, permutations = 999, na.rm = TRUE)
+
+
+
+# envfit_res is your envfit result
+env_vectors <- scores(envfit_res, display = "vectors")  # coordinates of arrows
+env_pvals   <- envfit_res$vectors$pvals                # raw p-values
+env_r2      <- envfit_res$vectors$r                    # R² values
+
+# Combine into a data frame
+env_summary <- data.frame(
+  Variable = rownames(env_vectors),
+  NMDS1 = env_vectors[, "NMDS1"],
+  NMDS2 = env_vectors[, "NMDS2"],
+  R2 = env_r2,
+  P = env_pvals
+)
+
+# Add BH-adjusted p-values
+env_summary$P_adj <- p.adjust(env_summary$P, method = "BH")
+
+# Print all variables with adjusted p-values
+print(env_summary[order(env_summary$P_adj), ])
+
+
+
+
+
+#  Extract significant vectors 
+sig_vectors <- envfit_res$vectors$arrows * sqrt(envfit_res$vectors$r)
+sig_pvals   <- envfit_res$vectors$pvals
+sig_adj     <- p.adjust(sig_pvals, method = "BH") # adjusted p value after Benjamini Hochberg
+
+sig_names <- names(sig_adj)[sig_adj < 0.05]
+
+sig_env <- as.data.frame(sig_vectors[sig_names, , drop = FALSE])
+sig_env$Variable <- rownames(sig_env)
+
+
+
+
+# Scale arrows to NMDS range 
+arrow_scale <- 0.5 * min(apply(nmds_scores[,c("NMDS1","NMDS2")],2,diff)) /
+  max(sqrt(rowSums(sig_env[,1:2]^2)))
+sig_env$NMDS1 <- sig_env$NMDS1 * arrow_scale
+sig_env$NMDS2 <- sig_env$NMDS2 * arrow_scale
+sig_env$x <- 0
+sig_env$y <- 0
+
+
+
+# Combine NMDS and metadata for plotting
+nmds_plot_df <- nmds_scores %>%
+  left_join(env_vars, by = c("ID" = "ID"))
+
+# Plot NMDS with arrows
+custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
+stress_val <- round(nmds$stress, 2)
+
+# order sites by vegetation
+nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
+
+
+# Flip only arrows (both axes)
+sig_env$NMDS1 <- -sig_env$NMDS1
+sig_env$NMDS2 <- -sig_env$NMDS2
+
+
+FigS5A <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+  geom_point(size = 3, alpha = 0.75) +
+  geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
+               arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
+  geom_text_repel(data=sig_env, aes(x=NMDS1*1.1, y=NMDS2*1.1, label=Variable),
+                  size=4, color="black", inherit.aes = FALSE) +
+  labs(x="NMDS1", y="NMDS2", color="Site", shape="Depth") +
+  scale_color_manual(values = custom_colors) +
+  annotate("text", x = -Inf, y = -Inf, 
+           label = paste("Stress =", stress_val), 
+           hjust = -0.1, vjust = -0.5, size = 4) +
+  labs(x = "NMDS1", y = "NMDS2", color = "Site", shape = "Depth") +
+  scale_shape_manual(
+    values = c(17, 16),  # your shapes
+    labels = c("Topsoil","Lower soil layer")) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14,
+    ),
+    plot.margin = margin(20, 10, 10, 10)
+  ) +
+  labs(title = "Taxonomic level") +
+  theme_bw()
+FigS5A
+
+
+
+# PERMANOVA 
+# Make sure samples match
+meta_tab <- meta_tab %>% filter(ID %in% rownames(abund_hell))
+
+# Reorder abund_hell to match metadata
+abund_hell_sub <- abund_hell[meta_tab$ID, , drop = FALSE]
+
+# Compute Bray-Curtis distance
+dist_mat <- vegdist(abund_hell_sub, method = "bray")
+
+# PERMANOVA: site and depth effect
+adonis2(dist_mat ~ site, data = meta_tab, permutations = 999) # 0.001 ***
+adonis2(dist_mat ~ depth, data = meta_tab, permutations = 999) # 0.749
+
+# PERMANOVA: depth nested within site
+adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 ***
+
+
+
+
+### S_Fig S5 B) NMDS of MAG-based functional composition ----------------
+
+
+# use mag abundance and meta data from above 
+
+# read the mags abundance file (use newly imported file!)
+mag_abund_abs <- read.csv('data/FigS4_A_AlpineSoil23_MAGs_abund_abs.tsv', sep='\t', header = T)
+
+# read functional annotations file
+ann_tab <- read.csv('data/FigS4_B_AlpineSoil23_MAGs_functional_annotations_emapper.tsv', sep='\t', header = T)
+
+
+
+### NMDS of KO terms 
+
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+
+
+### Extract KEGG KOs from annotations
+ann_tab <- ann_tab %>%
+  mutate(KEGG_ko = str_extract(KEGG_ko, "K\\d{5}")) %>%
+  filter(!is.na(KEGG_ko))
+
+
+# Join abundance + metadata 
+mags_long <- mag_abund_abs %>% # use absolute abundance!
+  pivot_longer(-bin_id, names_to = "ID", values_to = "abundance")
+
+# join annotations
+mag_ann <- mags_long %>% 
+  left_join(ann_tab, by = c("bin_id" ), relationship = "many-to-many")
+
+
+# summarize KO abundances per sample
+ko_wide <- mag_ann %>%
+  group_by(ID, KEGG_ko) %>%
+  summarise(abundance = sum(abundance, na.rm = TRUE), .groups = "drop")  %>%
+  tidyr::pivot_wider(
+    names_from = KEGG_ko,
+    values_from = abundance,
+    values_fill = 0
+  )
+
+
+# Convert to matrix with sample IDs as rownames
+ko_mat <- ko_wide %>%
+  column_to_rownames("ID") %>%  # rownames = sample IDs
+  as.matrix()                   # numeric matrix
+
+
+# hellinger transform
+abund_hell <- sqrt(ko_mat / rowSums(ko_mat))
+
+
+# distance matrix and nmds
+dist_mat <- vegdist(abund_hell, method = "bray")
+nmds <- metaMDS(dist_mat)
+stressplot(nmds)
+
+nmds_scores <- as.data.frame(scores(nmds, display = "sites"))
+nmds_scores$ID <- rownames(nmds_scores)
+
+
+# metadata alignment
+env_vars <- meta_tab
+env_vars$Shannon <- NULL
+env_vars$proc_euc <- NULL
+rownames(env_vars) <- env_vars$ID
+
+env_vars <- env_vars[rownames(env_vars) %in% rownames(nmds_scores), ]
+
+env_num <- env_vars %>%
+  select(where(is.numeric)) %>%
+  scale() %>%
+  as.data.frame()
+rownames(env_num) <- rownames(env_vars)
+
+
+# environmental variables
+envfit_res <- envfit(nmds, env_num, permutations = 999, na.rm = TRUE)
+
+env_vectors <- scores(envfit_res, display = "vectors")
+env_pvals   <- envfit_res$vectors$pvals
+env_r2      <- envfit_res$vectors$r
+
+env_summary <- data.frame(
+  Variable = rownames(env_vectors),
+  NMDS1 = env_vectors[, "NMDS1"],
+  NMDS2 = env_vectors[, "NMDS2"],
+  R2 = env_r2,
+  P = env_pvals
+)
+
+env_summary$P_adj <- p.adjust(env_summary$P, method = "BH")
+print(env_summary[order(env_summary$P_adj), ])
+
+
+# sifnificant drivers
+sig_vectors <- envfit_res$vectors$arrows * sqrt(envfit_res$vectors$r)
+sig_pvals   <- envfit_res$vectors$pvals
+sig_adj     <- p.adjust(sig_pvals, method = "BH")
+
+sig_names <- names(sig_adj)[sig_adj < 0.05]
+
+sig_env <- as.data.frame(sig_vectors[sig_names, , drop = FALSE])
+sig_env$Variable <- rownames(sig_env)
+
+arrow_scale <- 0.5 * min(apply(nmds_scores[,c("NMDS1","NMDS2")],2,diff)) /
+  max(sqrt(rowSums(sig_env[,1:2]^2)))
+
+sig_env$NMDS1 <- sig_env$NMDS1 * arrow_scale
+sig_env$NMDS2 <- sig_env$NMDS2 * arrow_scale
+sig_env$x <- 0
+sig_env$y <- 0
+
+
+
+
+# plot nmds
+nmds_plot_df <- nmds_scores %>% 
+  left_join(env_vars, by = "ID")
+
+
+
+# invert x axis
+nmds_plot_df$NMDS1 <- -nmds_plot_df$NMDS1
+nmds_plot_df$NMDS2 <- -nmds_plot_df$NMDS2
+
+# Flip arrows
+sig_env$NMDS1 <- -sig_env$NMDS1
+sig_env$NMDS2 <- -sig_env$NMDS2
+
+
+
+# set colors
+custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
+stress_val <- round(nmds$stress, 2)
+
+# order sites by vegetation
+nmds_plot_df$site = factor(nmds_plot_df$site, levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
+
+
+FigS5B <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+  geom_point(size = 3, alpha = 0.75) +
+  geom_segment(data=sig_env, aes(x=x, y=y, xend=NMDS1, yend=NMDS2),
+               arrow=arrow(length=unit(0.25,"cm")), color="black", inherit.aes = FALSE) +
+  geom_text_repel(data=sig_env, aes(x=NMDS1*1.1, y=NMDS2*1.1, label=Variable),
+                  size=4, color="black", inherit.aes = FALSE) +
+  labs(x="NMDS1", y="NMDS2", color="Site", shape="Depth") +
+  scale_color_manual(values = custom_colors) +
+  annotate("text", x = -Inf, y = -Inf, 
+           label = paste("Stress =", stress_val), 
+           hjust = -0.1, vjust = -0.5, size = 4) +
+  scale_shape_manual(
+    values = c(17, 16),  # your shapes
+    labels = c("Topsoil","Lower soil layer")) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14,
+    ),
+    plot.margin = margin(20, 10, 10, 10)
+  ) +
+  labs(title = "Functional level") +
+  theme_bw()
+FigS5B
+
+
+
+
+### PERMANOVA
+meta_tab <- meta_tab %>% filter(ID %in% rownames(abund_hell))
+
+abund_hell_sub <- abund_hell[meta_tab$ID, , drop = FALSE]
+dist_mat <- vegdist(abund_hell_sub, method = "bray")
+
+adonis2(dist_mat ~ site, data = meta_tab, permutations = 999) # 0.001 ***
+adonis2(dist_mat ~ depth, data = meta_tab, permutations = 999) # 0.629
+
+adonis2(dist_mat ~ site / depth, data = meta_tab, permutations = 999) # 0.001 ***
+
+
+
+
+
+
+
+### exporting final S figure S5 ---------------
+library(ggpubr)
+
+S_FigS5_final <- ggarrange(
+  FigS5A, FigS5B,
+  ncol = 2, nrow = 1,
+  labels = c('A', 'B'),
+  common.legend = TRUE,
+  legend = "right"
+)
+
+S_FigS5_final
+
+ggsave("figures/S_FigS5_final_AlpSoils23_NMDSs_MAG.png", plot = S_FigS5_final, height = 4, width = 9)
+
+
+
+
+
+### Supplemental figure S7 - Functional alpha diversity (KEGG ko based) (MAG based)  ##########################################################
+
+# use meta data from above and ko_mat
+
+
+# Compute functional diversity
+alpha_div_funct <- data.frame(
+  Sample = rownames(ko_mat),
+  Shannon = vegan::diversity(ko_mat, index = "shannon"),
+  Simpson = vegan::diversity(ko_mat, index = "simpson"),
+  Richness = vegan::specnumber(ko_mat)
+)
+
+# add site per sample
+meta_tab$Sample <- meta_tab$ID
+alpha_div_funct <- alpha_div_funct %>% left_join(meta_tab %>% select(Sample, site, depth), by = "Sample")
+
+# Ensure consistent site order
+alpha_div_funct$site <- factor(alpha_div_funct$site,
+                         levels = c("PM", "MF", "DS", "CD", "GR", "MY1", "SN", "MY2", "SF", "BN"))
+custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
+
+
+# plot
+p_3 <- ggplot(alpha_div_funct, aes(x = site, y = Shannon, color = site)) +
+  geom_jitter(width = 0.2, size = 1, alpha = 0.7, color = "grey50") + 
+  geom_boxplot(fill = NA) +   # outline only, no fill
+  labs(x = "Site", y = "Functional diverstiy\n(Shannon Index)") +
+  scale_colour_manual(values = custom_colors) +
+  theme_bw() +
+  theme(legend.position = "none")
+p_3 
+
+
+# use vegetation gradient bar from above
+
+S_FigS7 <- plot_grid(
+  p_3,
+  p_triangle,
+  ncol = 1,
+  align = "v",
+  rel_heights = c(1, 0.08)  # triangle height
+)
+S_FigS7
+
+ggsave("figures/S_FigS7_final_AlpSoils23_functional_diverstiy.png", plot = S_FigS7, height = 3, width = 4.5)
+
+
+
+
+
+# stats:
+alpha_div_funct$site <- factor(alpha_div_funct$site)
+alpha_div_funct$depth <- factor(alpha_div_funct$depth)
+
+# normality? 
+shapiro.test(alpha_div_funct$Shannon) # significant, so not normal
+
+# Test differences across sites
+kruskal.test(Shannon ~ site, data = alpha_div_funct) # p-value = 6.146e-010
+
+# Post-hoc pairwise Wilcoxon test
+pairwise.wilcox.test(alpha_div_funct$Shannon, alpha_div_funct$site, p.adjust.method = "BH")
+
+# Test differences across depths
+kruskal.test(Shannon ~ depth, data = alpha_div_funct) # p-value = 0.3944
 
 
 

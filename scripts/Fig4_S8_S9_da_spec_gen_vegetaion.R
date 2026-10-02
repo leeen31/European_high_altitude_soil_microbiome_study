@@ -8,6 +8,9 @@ rm(list=ls(all=TRUE)) # removes everything
 
 ### Fig 4 A) Differential abundance analysis -----------------------------
 
+# set to genus level
+
+
 library(ANCOMBC)
 library(dplyr)
 library(ggtext)
@@ -94,6 +97,7 @@ res_tax2 <- res_tax2 %>% mutate(Family = ifelse(Family == "f__", "Others", Famil
 # remove f_
 res_tax2$Family <- sub("^f__", "", res_tax2$Family)
 res_tax2$Phylum <- sub("^p__", "", res_tax2$Phylum)
+
 
 
 # filter only sig flagges phyla
@@ -468,11 +472,86 @@ ggsave("figures/Fig4_final_AlpSoils23_abund_div_vegetation.svg", plot = Fig4_fin
 
 
 
+### Supplementary Fig S8 - DA on genus level -------------------------------
+
+# make "others"
+res_tax3 <- res_tax2 %>% mutate(Genus = ifelse(Genus == "g__", "Others", Genus))
+
+
+# remove f_
+res_tax3$Genus <- sub("^g__", "", res_tax3$Genus)
+res_tax3$Phylum <- sub("^p__", "", res_tax3$Phylum)
+
+
+
+# filter only sig flagges phyla
+res_tax3 <- res_tax3 %>%
+  group_by(Phylum) %>%
+  filter(any(signif_vegetation)) %>%
+  ungroup()
+
+
+res_tax3 <- droplevels(res_tax3)
+
+# dot plot
+FigS8 <- ggplot(res_tax3, aes(x = lfc_vegetation, y = Genus)) +
+  ## non-significant background
+  geom_errorbar(
+    data = subset(res_tax3, !signif_vegetation),
+    aes(
+      xmin = lfc_vegetation - se_vegetation,
+      xmax = lfc_vegetation + se_vegetation),
+    height = 0.15, color = "grey80") +
+  geom_point(
+    data = subset(res_tax3, !signif_vegetation),
+    color = "grey70",
+    size = 2,
+    position = position_jitter(width = 0, height = 0.1)) +
+  ## significant foreground
+  geom_errorbar(
+    data = subset(res_tax3, signif_vegetation),
+    aes(
+      xmin = lfc_vegetation - se_vegetation,
+      xmax = lfc_vegetation + se_vegetation,
+      color = Phylum), height = 0.2, linewidth = 0.6) +
+  geom_point(
+    data = subset(res_tax3, signif_vegetation),
+    aes(color = Phylum),
+    size = 2.7,
+    position = position_jitter(width = 0,height = 0.1)) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4) +
+  facet_grid(
+    Phylum ~ .,
+    scales = "free_y",
+    space  = "free_y",
+    switch = "y") +
+  theme_bw() +
+  theme(legend.position = "right", 
+        legend.box.just = "left",
+        strip.text = element_blank(),
+        strip.background = element_blank()
+  ) +
+  guides(color = guide_legend(ncol = 2)) +
+  labs(
+    y = "Genus",
+    x = "Log fold change (Vegetation)",
+    color = "Phylum")
+FigS8
+
+ggsave("figures/FigS8_final_AlpSoils23_DA_genus.png", plot = FigS8, height = 12, width = 8)
 
 
 
 
-### Supplementary Fig S7 -  Specialist:Generalist MAGs using LEVIN and OCCUPANCY --------------
+
+
+
+
+
+
+
+
+### Supplementary Fig S9 -  Specialist:Generalist MAGs using LEVIN and OCCUPANCY --------------
 
 library(EcolUtils)
 library(spaa)
@@ -569,7 +648,7 @@ custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
 
 # plot with stats
 library(ggplot2)
-FigS7A <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
+FigS9A <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
   geom_point() +
   geom_smooth(
     method = "gam",
@@ -595,7 +674,7 @@ FigS7A <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour
         legend.key.height = unit(0.5, "lines"),
         legend.spacing.x  = unit(0.2, "lines"),
         legend.spacing.y  = unit(0.2, "lines"))
-FigS7A
+FigS9A
 
 
 
@@ -669,7 +748,7 @@ custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
 
 # plot with stats
 library(ggplot2)
-FigS7B <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
+FigS9B <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
   geom_point() +
   geom_smooth(
     method = "gam",
@@ -695,7 +774,7 @@ FigS7B <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour
         legend.key.height = unit(0.5, "lines"),
         legend.spacing.x  = unit(0.2, "lines"),
         legend.spacing.y  = unit(0.2, "lines"))
-FigS7B
+FigS9B
 
 
 
@@ -780,7 +859,7 @@ custom_colors <- RColorBrewer::brewer.pal(10, "Paired")
 
 # plot with stats
 library(ggplot2)
-FigS7C <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
+FigS9C <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour = site)) +
   geom_point() +
   geom_smooth(
     method = "gam",
@@ -806,7 +885,7 @@ FigS7C <- ggplot(sg_counts, aes(x = vegetation_trans, y = spec_gen_ratio, colour
         legend.key.height = unit(0.5, "lines"),
         legend.spacing.x  = unit(0.2, "lines"),
         legend.spacing.y  = unit(0.2, "lines"))
-FigS7C
+FigS9C
 
 
 
@@ -817,18 +896,18 @@ FigS7C
 
 
 
-### exporting final figure S7 ---------------
+### exporting final figure S9 ---------------
 library(ggpubr)
 
 
-FigS7_final <- ggarrange(
-  FigS7A, FigS7B, FigS7C,
+FigS9_final <- ggarrange(
+  FigS9A, FigS9B, FigS9C,
   ncol = 3,
   labels = c("A", "B", "C"), 
   common.legend = TRUE,
   legend = "bottom"
 )
 
-FigS7_final
+FigS9_final
 
-ggsave("figures/FigS7_final_AlpSoils23_spec_gen.png", plot = FigS7_final, height = 4.5, width = 10)
+ggsave("figures/FigS9_final_AlpSoils23_spec_gen.png", plot = FigS9_final, height = 4.5, width = 10)

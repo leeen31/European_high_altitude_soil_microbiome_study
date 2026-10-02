@@ -4,7 +4,6 @@
 
 rm(list=ls(all=TRUE)) # removes everything
 
-
 ### load data ####
 data <- read.csv("data/Fig2_AB_AlpineSoil23_metadata.tsv", header= TRUE, sep= "\t")
 
@@ -17,7 +16,7 @@ data <- data[, !colnames(data) %in% c( "Shannon", "proc_euc", "OM")]
 
 
 
-### Fig 1 A) correlation matrix --------------------------------------------------------
+### Fig 2 A) correlation matrix --------------------------------------------------------
 #https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
 
 # load libraries
@@ -33,8 +32,6 @@ library(psych)
 numeric_data <- data[, sapply(data, is.numeric)]
 cleaned_data <- na.omit(numeric_data)
 
-# Remove unwanted columns
-cleaned_data <- cleaned_data[, !colnames(cleaned_data) %in% c("OM", "proc_euc", "shannon")]
 
 # Compute correlation matrix and p-values
 cor_test_results <- psych::corr.test(cleaned_data, method = "spearman", adjust = "BH") # BH FDR correction
@@ -125,7 +122,7 @@ Fig1A
 
 
 
-#### Fig 1 B) PCA -----------------------------------------------------------------
+#### Fig 2 B) PCA -----------------------------------------------------------------
 
 
 # load libraries
@@ -428,10 +425,7 @@ ggsave("figures/Fig2_final_AlpSoils243_env_corr_PCA.svg", plot = Fig2_final, hei
 
 
 
-
-
-
-### Supplemental Figure S1A and B -----------------------------
+### Supplementary Figure S1A and B -----------------------------
 # PCA of topsoil and lower soil layer
 
 # use normalization from above

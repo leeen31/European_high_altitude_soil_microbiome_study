@@ -5,6 +5,7 @@
 rm(list=ls(all=TRUE)) # removes everything
 
 
+
 # load libs
 library(dplyr)
 library(tidyr)
@@ -197,7 +198,7 @@ sig_env$NMDS2 <- -sig_env$NMDS2
 nmds_plot_df$site <- factor(nmds_plot_df$site, levels = c("PM","MF","DS","CD","GR","MY1","SN","MY2","SF","BN"))
 
 # --- Plot NMDS ---
-S_FigS5 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
+S_FigS6 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = depth)) +
   geom_point(size = 3, alpha = 0.75) +
   geom_segment(data = sig_env, aes(x = x, y = y, xend = NMDS1, yend = NMDS2),
                arrow = arrow(length = unit(0.25, "cm")), color = "black", inherit.aes = FALSE) +
@@ -212,10 +213,10 @@ S_FigS5 <- ggplot(nmds_plot_df, aes(x = NMDS1, y = NMDS2, color = site, shape = 
   theme(plot.title = element_text(face="bold", hjust=0.5, size=14),
         plot.margin = margin(20,10,10,10)) +
   labs(title = "Bacterial taxonomic composition")
-S_FigS5
+S_FigS6
 
 
-ggsave("figures/S_FigS5_final_AlpSoils23_bac16srRNA_NMDS.png", plot = S_FigS5, height = 5, width = 6.5)
+ggsave("figures/S_FigS6_final_AlpSoils23_bac16srRNA_NMDS.png", plot = S_FigS6, height = 5, width = 6.5)
 
 
 
